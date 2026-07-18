@@ -5,11 +5,21 @@
 #include "steering.h"
 #include "SFML/Window/Keyboard.hpp"
 #include <cmath>
+#include <iostream>
 
+namespace {
+    int nextBulletId = 0;
+}
+
+namespace {
+    int nextEnemyId = 0;
+}
 CharacterEntity::CharacterEntity(sf::CircleShape shape, const int health, const sf::Vector2f position)
     : health{health},
+      Id{nextEnemyId++},
       position{position},
-      shape{std::move(shape)}
+      shape{std::move(shape),
+      }
 {
     this->shape.setOrigin({shape.getRadius(), shape.getRadius()});
     this->shape.setPosition(position);
@@ -38,6 +48,10 @@ bool CharacterEntity::IsAlive() const {
 
 int CharacterEntity::GetHealth() const {
     return health;
+}
+
+int CharacterEntity::GetId() const {
+    return Id;
 }
 
 sf::Vector2f CharacterEntity::GetPosition() const {
@@ -73,6 +87,26 @@ void CharacterEntity::SetAcceleration(const sf::Vector2f newAcceleration) {
     acceleration = newAcceleration;
 }
 
+BulletEntity::BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const sf::Vector2f &starting_velo, const int damage) :
+damage{damage}, hitbox{std::move(shape)}, position{starting_pos}, Id{nextBulletId++} {
+    hitbox.setPosition(position);
+    hitbox.setOrigin({shape.getRadius(), shape.getRadius()});
+    velocity = bullet_speed * starting_velo;
+}
+
+void BulletEntity::Update(const float dt) {
+    position += velocity * dt;
+    hitbox.setPosition(position);
+}
+
+const sf::CircleShape& BulletEntity::GetShape() const {
+    return hitbox;
+}
+
+int BulletEntity::GetId() const {
+    return Id;
+}
+
 Player::Player(sf::Sprite sprite, const sf::Vector2f& starting_pos) :
 entity{sf::CircleShape{40.f, 30},100, sf::Vector2f{starting_pos.x, starting_pos.y}}, sprite(std::move(sprite)) {
     this->sprite.setPosition({starting_pos.x, starting_pos.y});
@@ -85,22 +119,22 @@ void Player::Update(const float dt, const sf::Vector2f enemy_pos) {
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) {
         direction.y -= 1.f;
-        sprite.setRotation(sf::degrees(0.f));
     }
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
         direction.y += 1.f;
-        sprite.setRotation(sf::degrees(180.f));
     }
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) {
         direction.x -= 1.f;
-        sprite.setRotation(sf::degrees(270.f));
     }
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) {
         direction.x += 1.f;
-        sprite.setRotation(sf::degrees(90.f));
+    }
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
+        Player::Shoot(enemy_pos);
     }
 
     sprite.setRotation(sf::degrees(closest_enemy_theta));
@@ -129,6 +163,17 @@ void Player::SetAcceleration(const sf::Vector2f acceleration) {
     entity.SetAcceleration(acceleration);
 }
 
+void Player::Shoot(const sf::Vector2f& closest_enemy_pos) {
+    sf::CircleShape bullet{2, 30};
+    bullets.emplace_back(sf::CircleShape{2, 30}, entity.GetPosition(), Steering::EnemyToPlayer(entity.GetPosition(), closest_enemy_pos), damage);
+}
+
+void Player::RemoveBullet(const int bulletId) {
+    std::erase_if(bullets, [bulletId](const BulletEntity &b) {
+        return b.GetId() == bulletId;
+    });
+}
+
 sf::Vector2f Player::GetPosition() const {
     return entity.GetPosition();
 }
@@ -141,18 +186,9 @@ const sf::Sprite& Player::GetSprite() const {
     return sprite;
 }
 
-// sf::Vector2f PathfindToPlayer(const sf::Vector2f enemy_pos, const sf::Vector2f player_pos) {
-//     const sf::Vector2f difference = player_pos - enemy_pos;
-//
-//     const float length = std::sqrt(difference.x * difference.x + difference.y * difference.y);
-//
-//     if (length == 0.0f) {
-//         return {0.0f, 0.0f};
-//     }
-//
-//     return difference / length;
-// }
-
+std::list<BulletEntity>& Player::GetBullets() {
+    return bullets;
+};
 
 Enemy::Enemy(sf::Sprite  sprite) : entity{sf::CircleShape{50.f, 100}, 10, {200, 200}}, sprite(std::move(sprite)) {}
 
@@ -180,4 +216,7 @@ const sf::CircleShape &Enemy::GetShape() const {
 
 const sf::Sprite &Enemy::GetSprite() const {
     return sprite;
+}
+int Enemy::GetEnemyId() const {
+    return entity.GetId();
 }

@@ -4,9 +4,6 @@
 
 #include "steering.h"
 #include <cmath>
-#include <optional>
-
-#include "Entities.h"
 
 sf::Vector2f Steering::EnemyToPlayer(const sf::Vector2f player_pos, const sf::Vector2f enemy_pos) {
     const sf::Vector2f difference = enemy_pos - player_pos;
@@ -43,8 +40,20 @@ float Steering::PlayerPointToEnemy(const sf::Vector2f player_pos, const sf::Vect
     return angleRadians * radiansToDegrees + 90.f;
 }
 
-sf::Vector2f Steering::ClosestEnemy(const sf::Vector2f player_pos) {
+sf::Vector2f Steering::ClosestEnemy(const sf::Vector2f player_pos, const std::vector<Enemy>& enemies) {
+    float closestDistanceSquared = std::numeric_limits<float>::max();
+    sf::Vector2f closest_enemy_pos = {-1, -1};
+    for (auto& enemy : enemies) {
+        const sf::Vector2f difference = enemy.GetPosition() - player_pos;
 
+        const float distanceSquared =
+            difference.x * difference.x +
+            difference.y * difference.y;
 
-    return {-1, -1};
+        if (distanceSquared < closestDistanceSquared) {
+            closestDistanceSquared = distanceSquared;
+            closest_enemy_pos = enemy.GetPosition();
+        }
+    }
+    return closest_enemy_pos;
 }

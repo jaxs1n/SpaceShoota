@@ -4,6 +4,7 @@
 #include "Init/Init.h"
 #include "WindowLayer/window.h"
 #include "WindowLayer/renderer.h"
+#include "Collisions/Collisions.h"
 
 bool spawnEnemy() {
     if (rand() % 3571 == 0){
@@ -30,9 +31,12 @@ int main() {
 
     Player player = InitializePlayer(playerTexture, {400, 400});
 
+    sf::Vector2f closest_enemy_pos{};
+
     while (window.IsOpen()) {
         const float dt = clock.restart().asSeconds();
         window.PollEvents();
+        float closestDistanceSquared = std::numeric_limits<float>::max();
 
         if (spawnEnemy()) {
             Enemy new_enemy = InitializeEnemies(playerTexture);
@@ -46,11 +50,38 @@ int main() {
             enemy.Update(dt, player.GetPosition());
             // RD::Renderer::Draw(enemy.GetShape(), window.window);
             RD::Renderer::Draw(enemy.GetSprite(), window.window);
+
+            const sf::Vector2f difference = enemy.GetPosition() - player.GetPosition();
+
+            const float distanceSquared =
+                    difference.x * difference.x +
+                    difference.y * difference.y;
+
+            if (distanceSquared < closestDistanceSquared) {
+                closestDistanceSquared = distanceSquared;
+                closest_enemy_pos = enemy.GetPosition();
+            }
         }
 
-        player.Update(dt, Steering);
+        player.Update(dt, closest_enemy_pos);
 
-        // RD::Renderer::Draw(player.GetShape(), window.window);
+        for (auto it = player.GetBullets().begin(); it != player.GetBullets().end(); ) {
+            bool hit = false;
+            it->Update(dt);
+
+            for (auto& enemy : enemies) {
+                if (CircleToCircle(it->GetShape(), enemy.GetShape())) {
+                    hit = true;
+                }
+            }
+            if (hit) {
+                it = player.GetBullets().erase(it);
+            } else {
+                RD::Renderer::Draw(it->GetShape(), window.window);
+                ++it;
+            }
+        }
+
         RD::Renderer::Draw(player.GetSprite(), window.window);
 
         window.SetView(player.GetPosition());

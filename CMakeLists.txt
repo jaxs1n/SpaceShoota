@@ -10,8 +10,6 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(CMAKE_CXX_STANDARD 20)
 
 add_executable(TestGame main.cpp
-        Vector/Vector.h
-        Vector/Vector.cpp
         Includes/Includes.h
         WindowLayer/window.h
         WindowLayer/window.cpp
@@ -23,6 +21,8 @@ add_executable(TestGame main.cpp
         Entities/steering.cpp
         Init/Init.h
         Init/Init.cpp
+        Collisions/Collisions.h
+        Collisions/Collisions.cpp
 )
 
 target_link_libraries(TestGame sfml-graphics)
