@@ -5,6 +5,7 @@
 #include <SFML/Graphics/CircleShape.hpp>
 #include <SFML/System/Vector2.hpp>
 
+#include "SFML/Graphics/RenderWindow.hpp"
 #include "SFML/Graphics/Sprite.hpp"
 
 class Enemy;
@@ -48,6 +49,7 @@ class BulletEntity {
 public:
 
     BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const sf::Vector2f &starting_velo, int damage);
+    BulletEntity(sf::CircleShape  shape, const sf::Vector2f &starting_pos, int damage);
     void Update(float dt);
 
     const sf::CircleShape& GetShape() const;
@@ -67,11 +69,12 @@ class Player {
 public:
     explicit Player(sf::Sprite sprite, const sf::Vector2f& starting_pos);
 
-    void Update(float dt, sf::Vector2f enemy_pos);
+    void Update(float dt, sf::Vector2f enemy_pos, const sf::RenderWindow& window);
     void SetVelocity(sf::Vector2f velocity);
     void SetAcceleration(sf::Vector2f acceleration);
 
     void Shoot(const sf::Vector2f& closest_enemy_pos);
+    void Shoot();
     void RemoveBullet(int bulletId);
 
     [[nodiscard]] sf::Vector2f GetPosition() const;
@@ -85,11 +88,13 @@ private:
     std::list<BulletEntity> bullets{};
     int damage{1};
     sf::Sprite sprite;
+    bool LookingAtEnemy{false};
+    float shoot_cooldown{};
 };
 
 class Enemy {
 public:
-    explicit Enemy(sf::Sprite  sprite);
+    explicit Enemy(sf::Sprite sprite, const sf::Vector2f& starting_pos);
 
     void Update(float dt, const sf::Vector2f& player_pos);
     void SetVelocity(sf::Vector2f velocity);

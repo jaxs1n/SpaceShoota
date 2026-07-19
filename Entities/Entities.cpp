@@ -1,11 +1,14 @@
 #include "Entities.h"
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 #include "steering.h"
 #include "SFML/Window/Keyboard.hpp"
 #include <cmath>
 #include <iostream>
+
+#include "SFML/Window/Mouse.hpp"
 
 namespace {
     int nextBulletId = 0;
@@ -94,6 +97,9 @@ damage{damage}, hitbox{std::move(shape)}, position{starting_pos}, Id{nextBulletI
     velocity = bullet_speed * starting_velo;
 }
 
+BulletEntity::BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const int damage) :
+damage{damage}, hitbox{std::move(shape)}, position{starting_pos} {}
+
 void BulletEntity::Update(const float dt) {
     position += velocity * dt;
     hitbox.setPosition(position);
@@ -112,10 +118,14 @@ entity{sf::CircleShape{40.f, 30},100, sf::Vector2f{starting_pos.x, starting_pos.
     this->sprite.setPosition({starting_pos.x, starting_pos.y});
 }
 
-void Player::Update(const float dt, const sf::Vector2f enemy_pos) {
+void Player::Update(const float dt, const sf::Vector2f enemy_pos, const sf::RenderWindow& window) {
+    shoot_cooldown += dt;
     sf::Vector2f direction{0.f, 0.f};
+    // float closest_enemy_theta{0};
 
-    const float closest_enemy_theta = Steering::PlayerPointToEnemy(entity.GetPosition(), enemy_pos);
+    // if (enemy_pos.x != -1 || enemy_pos.y != -1) {
+    //     closest_enemy_theta = Steering::PlayerPointToEnemy(entity.GetPosition(), enemy_pos);
+    // }
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) {
         direction.y -= 1.f;
@@ -133,21 +143,24 @@ void Player::Update(const float dt, const sf::Vector2f enemy_pos) {
         direction.x += 1.f;
     }
 
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
-        Player::Shoot(enemy_pos);
+    if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
+        if (shoot_cooldown > .5) {
+            Player::Shoot(Steering::PlayerDirectionToMouse(window.mapPixelToCoords(sf::Mouse::getPosition(window)), entity.GetPosition()));
+            shoot_cooldown = 0.f;
+        }
     }
 
-    sprite.setRotation(sf::degrees(closest_enemy_theta));
+    sprite.setRotation(sf::degrees(Steering::PlayerPointToMouse(window.mapPixelToCoords(sf::Mouse::getPosition(window)), entity.GetPosition())));
 
-    const float length = std::sqrt(
-            direction.x * direction.x +
-            direction.y * direction.y
-        );
-    if (length > 0.f) {
+    // else {
+    //     sprite.setRotation(sf::degrees(closest_enemy_theta));
+    // }
+
+    if (const float length = std::sqrt(direction.x * direction.x + direction.y * direction.y); length > 0.f) {
         direction /= length;
     }
 
-    constexpr float movementSpeed = 400.f;
+    constexpr float movementSpeed = 450.f;
 
     entity.SetVelocity(direction * movementSpeed);
 
@@ -164,8 +177,13 @@ void Player::SetAcceleration(const sf::Vector2f acceleration) {
 }
 
 void Player::Shoot(const sf::Vector2f& closest_enemy_pos) {
-    sf::CircleShape bullet{2, 30};
-    bullets.emplace_back(sf::CircleShape{2, 30}, entity.GetPosition(), Steering::EnemyToPlayer(entity.GetPosition(), closest_enemy_pos), damage);
+    sf::CircleShape bullet{5, 30};
+    bullets.emplace_back(bullet, entity.GetPosition(), closest_enemy_pos, damage);
+}
+
+void Player::Shoot() {
+    sf::CircleShape bullet{5, 30};
+    bullets.emplace_back(bullet, entity.GetPosition(), damage);
 }
 
 void Player::RemoveBullet(const int bulletId) {
@@ -190,7 +208,9 @@ std::list<BulletEntity>& Player::GetBullets() {
     return bullets;
 };
 
-Enemy::Enemy(sf::Sprite  sprite) : entity{sf::CircleShape{50.f, 100}, 10, {200, 200}}, sprite(std::move(sprite)) {}
+Enemy::Enemy(sf::Sprite sprite, const sf::Vector2f& spawn_position) : entity{sf::CircleShape{50.f, 100}, 10, {200, 200}}, sprite(std::move(sprite)) {
+    this->entity.SetPosition(spawn_position);
+}
 
 void Enemy::Update(const float dt, const sf::Vector2f& player_pos) {
     const sf::Vector2f direction = Steering::EnemyToPlayer(entity.GetPosition(), player_pos);

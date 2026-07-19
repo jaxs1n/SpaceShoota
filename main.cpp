@@ -5,6 +5,7 @@
 #include "WindowLayer/window.h"
 #include "WindowLayer/renderer.h"
 #include "Collisions/Collisions.h"
+#include "Entities/Spawn.h"
 
 bool spawnEnemy() {
     if (rand() % 3571 == 0){
@@ -29,9 +30,9 @@ int main() {
     backgroundSprite.setScale(sf::Vector2f(20.f, 16.f));
     backgroundSprite.setPosition(sf::Vector2f(0.f, 0.f));
 
-    Player player = InitializePlayer(playerTexture, {400, 400});
+    Player player = Spawn::InitializePlayer(playerTexture, {1000, 1000});
 
-    sf::Vector2f closest_enemy_pos{};
+    sf::Vector2f closest_enemy_pos{-1, -1};
 
     while (window.IsOpen()) {
         const float dt = clock.restart().asSeconds();
@@ -39,7 +40,7 @@ int main() {
         float closestDistanceSquared = std::numeric_limits<float>::max();
 
         if (spawnEnemy()) {
-            Enemy new_enemy = InitializeEnemies(playerTexture);
+            Enemy new_enemy = Spawn::InitializeEnemy(playerTexture, EnemySpawnLocation(player.GetPosition()));
             enemies.push_back(new_enemy);
         }
 
@@ -63,7 +64,7 @@ int main() {
             }
         }
 
-        player.Update(dt, closest_enemy_pos);
+        player.Update(dt, closest_enemy_pos, window.window);
 
         for (auto it = player.GetBullets().begin(); it != player.GetBullets().end(); ) {
             bool hit = false;

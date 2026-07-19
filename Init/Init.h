@@ -7,8 +7,9 @@
 
 #include "../Entities/Entities.h"
 
-Player InitializePlayer(const sf::Texture& texture, const sf::Vector2f pos);
-Enemy InitializeEnemies(const sf::Texture& texture);
-
+namespace Spawn {
+    Player InitializePlayer(const sf::Texture& texture, const sf::Vector2f& pos);
+    Enemy InitializeEnemy(const sf::Texture& texture, const sf::Vector2f& pos);
+}
 
 #endif //TESTGAME_INIT_PLAYER_H

@@ -23,6 +23,10 @@ add_executable(TestGame main.cpp
         Init/Init.cpp
         Collisions/Collisions.h
         Collisions/Collisions.cpp
+        Entities/Spawn.h
+        Entities/Spawn.h
+        Entities/Spawn.cpp
+        Entities/Spawn.cpp
 )
 
 target_link_libraries(TestGame sfml-graphics)

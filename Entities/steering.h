@@ -14,5 +14,8 @@ namespace Steering {
     sf::Vector2f PlayerMovement();
     float PlayerPointToEnemy(sf::Vector2f player_pos, sf::Vector2f enemy_pos);
     sf::Vector2f ClosestEnemy(sf::Vector2f player_pos, const std::vector<Enemy> &enemies);
+    sf::Vector2f PlayerDirectionToMouse(const sf::Vector2f& mouse_position, const sf::Vector2f& player_pos);
+
+    float PlayerPointToMouse(const sf::Vector2f& mouse_position, const sf::Vector2f& player_pos);
 }
 #endif //TESTGAME_STEERING_H
