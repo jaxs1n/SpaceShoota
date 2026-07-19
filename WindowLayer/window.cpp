@@ -5,7 +5,7 @@
 #include "window.h"
 
 bool GW::Window::IsOpen() const {
-    return IsOpen_;
+    return window.isOpen();
 }
 
 void GW::Window::Close() {

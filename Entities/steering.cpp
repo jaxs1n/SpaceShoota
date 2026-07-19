@@ -62,7 +62,6 @@ float Steering::PlayerPointToMouse(const sf::Vector2f& mouse_position, const sf:
     constexpr float radiansToDegrees = 180.f / 3.14159265f;
 
     return angleRadians * radiansToDegrees - 90.f;
-
 }
 
 sf::Vector2f Steering::PlayerDirectionToMouse(const sf::Vector2f& mouse_position, const sf::Vector2f& player_pos) {

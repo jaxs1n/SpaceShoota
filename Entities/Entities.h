@@ -14,10 +14,6 @@ class CharacterEntity {
 public:
     CharacterEntity(sf::CircleShape shape, int health, sf::Vector2f position);
 
-    void Update(float dt);
-    void Die();
-    void TakeDamage(int damage);
-
     [[nodiscard]] bool IsAlive() const;
     [[nodiscard]] int GetHealth() const;
     [[nodiscard]] int GetId() const;
@@ -32,11 +28,14 @@ public:
     void SetPosition(sf::Vector2f position);
     void SetVelocity(sf::Vector2f velocity);
     void SetAcceleration(sf::Vector2f acceleration);
+    void SetHealth(int health);
+    void TakeDamage();
+    void Update(float dt);
+    void TakeDamage(int damage);
 
 private:
     int health{};
     int Id{};
-    bool alive{true};
 
     sf::Vector2f position{};
     sf::Vector2f velocity{};
@@ -48,11 +47,11 @@ private:
 class BulletEntity {
 public:
 
-    BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const sf::Vector2f &starting_velo, int damage);
-    BulletEntity(sf::CircleShape  shape, const sf::Vector2f &starting_pos, int damage);
+    BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const sf::Vector2f &starting_velo, int damage, sf::Sprite sprite);
     void Update(float dt);
 
     const sf::CircleShape& GetShape() const;
+    const sf::Sprite& GetSprite() const;
     sf::Vector2f GetPosition() const;
     int GetId() const;
 
@@ -61,7 +60,8 @@ private:
     sf::CircleShape hitbox;
     sf::Vector2f position{};
     sf::Vector2f velocity{};
-    static constexpr float bullet_speed = 800.f;
+    sf::Sprite sprite;
+    static constexpr float bullet_speed = 1400.f;
     const int Id{};
 };
 
@@ -69,27 +69,34 @@ class Player {
 public:
     explicit Player(sf::Sprite sprite, const sf::Vector2f& starting_pos);
 
-    void Update(float dt, sf::Vector2f enemy_pos, const sf::RenderWindow& window);
+    void Update(float dt, const sf::RenderWindow& window);
     void SetVelocity(sf::Vector2f velocity);
     void SetAcceleration(sf::Vector2f acceleration);
+    void SetPosition(sf::Vector2f position);
+
+    void TakeDamage();
+
+
+    void SetDamage(int dmg);
 
     void Shoot(const sf::Vector2f& closest_enemy_pos);
-    void Shoot();
     void RemoveBullet(int bulletId);
 
     [[nodiscard]] sf::Vector2f GetPosition() const;
     [[nodiscard]] const sf::CircleShape& GetShape() const;
     [[nodiscard]] const sf::Sprite& GetSprite() const;
-    std::list<BulletEntity>& GetBullets();
+    [[nodiscard]] int GetDamage() const;
+    [[nodiscard]] CharacterEntity& GetEntity();
 
+    std::list<BulletEntity>& GetBullets();
+    [[nodiscard]] const std::list<BulletEntity>& GetBullets() const;
 
 private:
     CharacterEntity entity;
     std::list<BulletEntity> bullets{};
     int damage{1};
     sf::Sprite sprite;
-    bool LookingAtEnemy{false};
-    float shoot_cooldown{};
+    float shoot_cooldown{0};
 };
 
 class Enemy {
@@ -99,16 +106,32 @@ public:
     void Update(float dt, const sf::Vector2f& player_pos);
     void SetVelocity(sf::Vector2f velocity);
     void SetAcceleration(sf::Vector2f acceleration);
+    void Shoot(const sf::Vector2f& player_position);
+    void PointToPlayer(const sf::Vector2f& player_position);
 
     [[nodiscard]] sf::Vector2f GetPosition() const;
     [[nodiscard]] const sf::CircleShape& GetShape() const;
     [[nodiscard]] const sf::Sprite& GetSprite() const;
+    [[nodiscard]] CharacterEntity& GetEntity();
+    [[nodiscard]] std::list<BulletEntity>& GetBullets();
+    [[nodiscard]] const std::list<BulletEntity>& GetBullets() const;
 
     int GetEnemyId() const;
 
 private:
     CharacterEntity entity;
     sf::Sprite sprite;
+    int damage{1};
+    std::list<BulletEntity> bullets{};
+    float shoot_cooldown{0};
+};
+
+struct Explosion {
+    float lifetime{.25};
+    sf::Sprite sprite;
+    sf::Vector2f position;
+
+    Explosion(const sf::Sprite &sprite, const sf::Vector2f& starting_pos);
 };
 
 #endif

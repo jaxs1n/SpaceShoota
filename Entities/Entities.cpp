@@ -5,9 +5,7 @@
 #include <utility>
 #include "steering.h"
 #include "SFML/Window/Keyboard.hpp"
-#include <cmath>
-#include <iostream>
-
+#include "SFML/Graphics/Texture.hpp"
 #include "SFML/Window/Mouse.hpp"
 
 namespace {
@@ -17,6 +15,25 @@ namespace {
 namespace {
     int nextEnemyId = 0;
 }
+namespace
+{
+    sf::Texture PlayerBulletTexture{"bullet.png"};
+    sf::Texture EnemyBulletTexture{"bullet2.png"};
+
+    sf::Sprite playerB{PlayerBulletTexture};
+    sf::Sprite enemyB{EnemyBulletTexture};
+
+    void CenterSpriteOrigin(sf::Sprite& sprite)
+    {
+        const sf::FloatRect bounds = sprite.getLocalBounds();
+
+        sprite.setOrigin({
+            bounds.position.x + bounds.size.x / 2.f,
+            bounds.position.y + bounds.size.y / 2.f
+        });
+    }
+}
+
 CharacterEntity::CharacterEntity(sf::CircleShape shape, const int health, const sf::Vector2f position)
     : health{health},
       Id{nextEnemyId++},
@@ -33,20 +50,12 @@ void CharacterEntity::Update(const float dt) {
     SetPosition(position + velocity * dt);
 }
 
-void CharacterEntity::Die() {
-    alive = false;
-}
-
 void CharacterEntity::TakeDamage(const int damage) {
-    health = std::max(0, health - damage);
+    health = health - damage;
 
-    if (health <= 0) {
-        Die();
-    }
 }
-
-bool CharacterEntity::IsAlive() const {
-    return alive;
+void CharacterEntity::TakeDamage() {
+    this->health--;
 }
 
 int CharacterEntity::GetHealth() const {
@@ -90,23 +99,43 @@ void CharacterEntity::SetAcceleration(const sf::Vector2f newAcceleration) {
     acceleration = newAcceleration;
 }
 
-BulletEntity::BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const sf::Vector2f &starting_velo, const int damage) :
-damage{damage}, hitbox{std::move(shape)}, position{starting_pos}, Id{nextBulletId++} {
+void CharacterEntity::SetHealth(const int health) {
+    this->health = health;
+}
+
+BulletEntity::BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const sf::Vector2f &starting_velo, const int damage, sf::Sprite  sprite) :
+damage{damage}, hitbox{std::move(shape)}, position{starting_pos}, sprite{std::move(sprite)}, Id{nextBulletId++} {
     hitbox.setPosition(position);
     hitbox.setOrigin({shape.getRadius(), shape.getRadius()});
     velocity = bullet_speed * starting_velo;
-}
 
-BulletEntity::BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const int damage) :
-damage{damage}, hitbox{std::move(shape)}, position{starting_pos} {}
+    this->sprite.setScale({.1, .1});
+
+    const sf::FloatRect bounds = this->sprite.getLocalBounds();
+
+    this->sprite.setOrigin({bounds.position.x + bounds.size.x / 2.f, bounds.position.y + bounds.size.y / 2.f});
+    this->sprite.setPosition(position);
+
+    const float angle = std::atan2(velocity.y, velocity.x);
+    this->sprite.setRotation(sf::radians(angle));
+}
 
 void BulletEntity::Update(const float dt) {
     position += velocity * dt;
     hitbox.setPosition(position);
+    sprite.setPosition(position);
 }
 
 const sf::CircleShape& BulletEntity::GetShape() const {
     return hitbox;
+}
+
+sf::Vector2f BulletEntity::GetPosition() const {
+    return position;
+}
+
+const sf::Sprite &BulletEntity::GetSprite() const {
+    return sprite;
 }
 
 int BulletEntity::GetId() const {
@@ -114,58 +143,46 @@ int BulletEntity::GetId() const {
 }
 
 Player::Player(sf::Sprite sprite, const sf::Vector2f& starting_pos) :
-entity{sf::CircleShape{40.f, 30},100, sf::Vector2f{starting_pos.x, starting_pos.y}}, sprite(std::move(sprite)) {
+entity{sf::CircleShape{40.f, 30},5, sf::Vector2f{starting_pos.x, starting_pos.y}}, sprite(std::move(sprite)) {
+    CenterSpriteOrigin(this->sprite);
     this->sprite.setPosition({starting_pos.x, starting_pos.y});
 }
 
-void Player::Update(const float dt, const sf::Vector2f enemy_pos, const sf::RenderWindow& window) {
+void Player::Update(const float dt, const sf::RenderWindow& window) {
     shoot_cooldown += dt;
-    sf::Vector2f direction{0.f, 0.f};
-    // float closest_enemy_theta{0};
 
-    // if (enemy_pos.x != -1 || enemy_pos.y != -1) {
-    //     closest_enemy_theta = Steering::PlayerPointToEnemy(entity.GetPosition(), enemy_pos);
-    // }
+    sf::Vector2f movementDirection{0.f, 0.f};
 
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) {
-        direction.y -= 1.f;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) movementDirection.y -= 1.f;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) movementDirection.y += 1.f;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) movementDirection.x -= 1.f;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) movementDirection.x += 1.f;
+
+    const sf::Vector2f mousePosition =
+        window.mapPixelToCoords(sf::Mouse::getPosition(window));
+
+    if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && shoot_cooldown >= 0.5f) {
+        Shoot(Steering::PlayerDirectionToMouse(mousePosition, entity.GetPosition()));
+        shoot_cooldown = 0.f;
     }
 
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
-        direction.y += 1.f;
-    }
+    sprite.setRotation(sf::degrees(
+        Steering::PlayerPointToMouse(mousePosition, entity.GetPosition())
+    ));
 
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) {
-        direction.x -= 1.f;
-    }
+    const float movementLength = std::sqrt(
+        movementDirection.x * movementDirection.x +
+        movementDirection.y * movementDirection.y
+    );
 
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) {
-        direction.x += 1.f;
-    }
-
-    if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
-        if (shoot_cooldown > .5) {
-            Player::Shoot(Steering::PlayerDirectionToMouse(window.mapPixelToCoords(sf::Mouse::getPosition(window)), entity.GetPosition()));
-            shoot_cooldown = 0.f;
-        }
-    }
-
-    sprite.setRotation(sf::degrees(Steering::PlayerPointToMouse(window.mapPixelToCoords(sf::Mouse::getPosition(window)), entity.GetPosition())));
-
-    // else {
-    //     sprite.setRotation(sf::degrees(closest_enemy_theta));
-    // }
-
-    if (const float length = std::sqrt(direction.x * direction.x + direction.y * direction.y); length > 0.f) {
-        direction /= length;
+    if (movementLength > 0.f) {
+        movementDirection /= movementLength;
     }
 
     constexpr float movementSpeed = 450.f;
-
-    entity.SetVelocity(direction * movementSpeed);
-
+    entity.SetVelocity(movementDirection * movementSpeed);
     entity.Update(dt);
-    sprite.setPosition({entity.GetPosition().x, entity.GetPosition().y});
+    sprite.setPosition(entity.GetPosition());
 }
 
 void Player::SetVelocity(const sf::Vector2f velocity) {
@@ -176,20 +193,27 @@ void Player::SetAcceleration(const sf::Vector2f acceleration) {
     entity.SetAcceleration(acceleration);
 }
 
-void Player::Shoot(const sf::Vector2f& closest_enemy_pos) {
-    sf::CircleShape bullet{5, 30};
-    bullets.emplace_back(bullet, entity.GetPosition(), closest_enemy_pos, damage);
+void Player::SetPosition(const sf::Vector2f position) {
+    entity.SetPosition(position);
 }
 
-void Player::Shoot() {
+void Player::TakeDamage() {
+    entity.TakeDamage();
+}
+
+void Player::Shoot(const sf::Vector2f& closest_enemy_pos) {
     sf::CircleShape bullet{5, 30};
-    bullets.emplace_back(bullet, entity.GetPosition(), damage);
+    bullets.emplace_back(bullet, entity.GetPosition(), closest_enemy_pos, damage, playerB);
 }
 
 void Player::RemoveBullet(const int bulletId) {
     std::erase_if(bullets, [bulletId](const BulletEntity &b) {
         return b.GetId() == bulletId;
     });
+}
+
+void Player::SetDamage(const int dmg) {
+    this->damage += dmg;
 }
 
 sf::Vector2f Player::GetPosition() const {
@@ -200,19 +224,34 @@ const sf::CircleShape& Player::GetShape() const {
     return entity.GetShape();
 }
 
+CharacterEntity &Player::GetEntity() {
+    return entity;
+}
+
 const sf::Sprite& Player::GetSprite() const {
     return sprite;
 }
 
+int Player::GetDamage() const {
+    return damage;
+}
+
 std::list<BulletEntity>& Player::GetBullets() {
     return bullets;
-};
+}
 
-Enemy::Enemy(sf::Sprite sprite, const sf::Vector2f& spawn_position) : entity{sf::CircleShape{50.f, 100}, 10, {200, 200}}, sprite(std::move(sprite)) {
+const std::list<BulletEntity>& Player::GetBullets() const {
+    return bullets;
+}
+
+Enemy::Enemy(sf::Sprite sprite, const sf::Vector2f& spawn_position) : entity{sf::CircleShape{50.f, 100}, 5, {200, 200}}, sprite(std::move(sprite)) {
     this->entity.SetPosition(spawn_position);
+    CenterSpriteOrigin(this->sprite);
+    this->sprite.setPosition({spawn_position.x, spawn_position.y});
 }
 
 void Enemy::Update(const float dt, const sf::Vector2f& player_pos) {
+    shoot_cooldown += dt;
     const sf::Vector2f direction = Steering::EnemyToPlayer(entity.GetPosition(), player_pos);
 
     constexpr float speed = 350.f;
@@ -227,6 +266,21 @@ void Enemy::SetVelocity(const sf::Vector2f velocity) {
 void Enemy::SetAcceleration(const sf::Vector2f acceleration) {
     entity.SetAcceleration(acceleration);
 }
+
+void Enemy::Shoot(const sf::Vector2f &player_position) {
+    const sf::Vector2f direction = Steering::EnemyToPlayer(entity.GetPosition(), player_position);
+    if (shoot_cooldown > .5) {
+        sf::CircleShape bullet{5, 30};
+        bullets.emplace_back(bullet, entity.GetPosition(), direction, damage, enemyB);
+        shoot_cooldown = 0.f;
+    }
+}
+
+void Enemy::PointToPlayer(const sf::Vector2f &player_position) {
+    const float theta = Steering::PlayerPointToEnemy(entity.GetPosition(), player_position);
+    sprite.setRotation(sf::degrees(theta));
+}
+
 sf::Vector2f Enemy::GetPosition() const {
     return entity.GetPosition();
 }
@@ -239,4 +293,20 @@ const sf::Sprite &Enemy::GetSprite() const {
 }
 int Enemy::GetEnemyId() const {
     return entity.GetId();
+}
+
+std::list<BulletEntity>& Enemy::GetBullets() {
+    return bullets;
+}
+
+const std::list<BulletEntity>& Enemy::GetBullets() const {
+    return bullets;
+}
+
+CharacterEntity& Enemy::GetEntity() {
+    return entity;
+}
+
+Explosion::Explosion(const sf::Sprite &sprite, const sf::Vector2f &starting_pos) : sprite(sprite), position(starting_pos) {
+    this->sprite.setPosition(position);
 }

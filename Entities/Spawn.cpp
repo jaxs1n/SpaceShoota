@@ -3,9 +3,7 @@
 //
 
 #include "Spawn.h"
-
 #include <random>
-
 
 sf::Vector2f EnemySpawnLocation(const sf::Vector2f& player_pos) {
     constexpr float innerDistance = 750.f;

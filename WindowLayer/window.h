@@ -20,7 +20,6 @@ namespace GW {
 
         sf::RenderWindow window{sf::VideoMode({1000, 800}), "Space Game"};
     private:
-        bool IsOpen_ = true;
         sf::View View_;
     };
 }
