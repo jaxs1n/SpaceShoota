@@ -9,7 +9,7 @@
 
 namespace Spawn {
     Player InitializePlayer(const sf::Texture& texture, const sf::Vector2f& pos);
-    Enemy InitializeEnemy(const sf::Texture& texture, const sf::Vector2f& pos);
+    Enemy InitializeEnemy(const sf::Texture& texture, const sf::Vector2f& pos, EnemyType enemy_type);
 }
 
 #endif //TESTGAME_INIT_PLAYER_H

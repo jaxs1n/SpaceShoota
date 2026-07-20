@@ -8,7 +8,24 @@
 #include "SFML/Graphics/RenderWindow.hpp"
 #include "SFML/Graphics/Sprite.hpp"
 
-class Enemy;
+
+enum class ItemType {
+    piercing_ammo,
+    shotgun_ammo,
+    armor_1,
+    armor_2,
+    armor_3,
+    damage_1,
+    damage_2,
+    damage_3
+};
+
+enum class EnemyType {
+    Normal,
+    Tank,
+    Stealth,
+    Sniper
+};
 
 class CharacterEntity {
 public:
@@ -36,6 +53,8 @@ public:
 private:
     int health{};
     int Id{};
+    float speed{450};
+    float shoot_cooldown{.5};
 
     sf::Vector2f position{};
     sf::Vector2f velocity{};
@@ -47,7 +66,7 @@ private:
 class BulletEntity {
 public:
 
-    BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const sf::Vector2f &starting_velo, int damage, sf::Sprite sprite);
+    BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const sf::Vector2f &starting_velo, int damage, float b_speed, sf::Sprite sprite);
     void Update(float dt);
 
     const sf::CircleShape& GetShape() const;
@@ -61,7 +80,6 @@ private:
     sf::Vector2f position{};
     sf::Vector2f velocity{};
     sf::Sprite sprite;
-    static constexpr float bullet_speed = 1400.f;
     const int Id{};
 };
 
@@ -94,14 +112,16 @@ public:
 private:
     CharacterEntity entity;
     std::list<BulletEntity> bullets{};
-    int damage{1};
+    int damage{2};
     sf::Sprite sprite;
-    float shoot_cooldown{0};
+    float shoot_cooldown{0.5f};
+    float shoot_cooldown_timer{0};
+    float bullet_speed{1400.f};
 };
 
 class Enemy {
 public:
-    explicit Enemy(sf::Sprite sprite, const sf::Vector2f& starting_pos);
+    explicit Enemy(sf::Sprite sprite, const sf::Vector2f& starting_pos, const EnemyType enemy_type);
 
     void Update(float dt, const sf::Vector2f& player_pos);
     void SetVelocity(sf::Vector2f velocity);
@@ -119,11 +139,16 @@ public:
     int GetEnemyId() const;
 
 private:
+    EnemyType enemy_type{EnemyType::Normal};
     CharacterEntity entity;
     sf::Sprite sprite;
     int damage{1};
+    float bullet_speed{1400.f};
+    float speed{0.f};
     std::list<BulletEntity> bullets{};
-    float shoot_cooldown{0};
+    float shoot_cooldown{0.5f};
+    float shoot_cooldown_timer{0};
+    int follow_distance{50};
 };
 
 struct Explosion {

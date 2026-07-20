@@ -8,5 +8,6 @@
 #include "Entities.h"
 
 sf::Vector2f EnemySpawnLocation(const sf::Vector2f& player_pos);
+EnemyType RandomEnemyType();
 
 #endif //TESTGAME_SPAWN_H

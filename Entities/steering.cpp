@@ -78,3 +78,10 @@ sf::Vector2f Steering::PlayerDirectionToMouse(const sf::Vector2f& mouse_position
 
     return direction;
 }
+
+bool Steering::StopEnemyMovement(const sf::Vector2f &player_pos, const sf::Vector2f &enemy_pos, const int follow_distance) {
+    const sf::Vector2f difference = player_pos - enemy_pos;
+    const float distance_squared = difference.x * difference.x + difference.y * difference.y;
+
+    return distance_squared > follow_distance * follow_distance;
+}

@@ -99,7 +99,8 @@ void Game::GameLogic::SpawnEnemies(const float dt) {
     enemies_.push_back(
         Spawn::InitializeEnemy(
             playerTexture_,
-            EnemySpawnLocation(player_.GetPosition())
+            EnemySpawnLocation(player_.GetPosition()),
+            RandomEnemyType()
         )
     );
 

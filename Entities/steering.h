@@ -15,6 +15,7 @@ namespace Steering {
     float PlayerPointToEnemy(sf::Vector2f player_pos, sf::Vector2f enemy_pos);
     sf::Vector2f ClosestEnemy(sf::Vector2f player_pos, const std::vector<Enemy> &enemies);
     sf::Vector2f PlayerDirectionToMouse(const sf::Vector2f& mouse_position, const sf::Vector2f& player_pos);
+    bool StopEnemyMovement(const sf::Vector2f& player_pos, const sf::Vector2f& enemy_pos, int follow_distance);
 
     float PlayerPointToMouse(const sf::Vector2f& mouse_position, const sf::Vector2f& player_pos);
 }

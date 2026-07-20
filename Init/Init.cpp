@@ -17,7 +17,7 @@ Player Spawn::InitializePlayer(const sf::Texture& texture, const sf::Vector2f& p
     return Player{sprite, pos};
 }
 
-Enemy Spawn::InitializeEnemy(const sf::Texture& texture, const sf::Vector2f& pos) {
+Enemy Spawn::InitializeEnemy(const sf::Texture& texture, const sf::Vector2f& pos, const EnemyType enemy_type) {
     const sf::Vector2u  textureSize = texture.getSize();
 
     sf::Sprite sprite{texture};
@@ -25,7 +25,7 @@ Enemy Spawn::InitializeEnemy(const sf::Texture& texture, const sf::Vector2f& pos
     sprite.setOrigin({static_cast<float>(textureSize.x) / 2.f, static_cast<float>(textureSize.y) / 2.f});
     sprite.setScale({0.25f, 0.25f});
 
-    return Enemy{sprite, pos};
+    return Enemy{sprite, pos, enemy_type};
 }
 // Enemy InitializeEnemies(const sf::Texture& texture) {
 //     return Enemy{sprite};

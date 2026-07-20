@@ -33,6 +33,12 @@ namespace
         });
     }
 }
+namespace {
+    const float attack_speed_0 = 0.f;
+    const float attack_speed_1 = 0.3f;
+    const float attack_speed_2 = 0.5f;
+    const float attack_speed_3 = 0.63;
+}
 
 CharacterEntity::CharacterEntity(sf::CircleShape shape, const int health, const sf::Vector2f position)
     : health{health},
@@ -103,12 +109,10 @@ void CharacterEntity::SetHealth(const int health) {
     this->health = health;
 }
 
-BulletEntity::BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const sf::Vector2f &starting_velo, const int damage, sf::Sprite  sprite) :
-damage{damage}, hitbox{std::move(shape)}, position{starting_pos}, sprite{std::move(sprite)}, Id{nextBulletId++} {
+BulletEntity::BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const sf::Vector2f &starting_velo, const int damage, const float b_speed, sf::Sprite  sprite) :
+damage{damage}, hitbox{std::move(shape)}, position{starting_pos}, velocity(starting_velo * b_speed), sprite{std::move(sprite)},Id{nextBulletId++} {
     hitbox.setPosition(position);
     hitbox.setOrigin({shape.getRadius(), shape.getRadius()});
-    velocity = bullet_speed * starting_velo;
-
     this->sprite.setScale({.1, .1});
 
     const sf::FloatRect bounds = this->sprite.getLocalBounds();
@@ -143,13 +147,13 @@ int BulletEntity::GetId() const {
 }
 
 Player::Player(sf::Sprite sprite, const sf::Vector2f& starting_pos) :
-entity{sf::CircleShape{40.f, 30},5, sf::Vector2f{starting_pos.x, starting_pos.y}}, sprite(std::move(sprite)) {
+entity{sf::CircleShape{40.f, 30},100, sf::Vector2f{starting_pos.x, starting_pos.y}}, sprite(std::move(sprite)) {
     CenterSpriteOrigin(this->sprite);
     this->sprite.setPosition({starting_pos.x, starting_pos.y});
 }
 
 void Player::Update(const float dt, const sf::RenderWindow& window) {
-    shoot_cooldown += dt;
+    shoot_cooldown_timer += dt;
 
     sf::Vector2f movementDirection{0.f, 0.f};
 
@@ -158,12 +162,11 @@ void Player::Update(const float dt, const sf::RenderWindow& window) {
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) movementDirection.x -= 1.f;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) movementDirection.x += 1.f;
 
-    const sf::Vector2f mousePosition =
-        window.mapPixelToCoords(sf::Mouse::getPosition(window));
+    const sf::Vector2f mousePosition = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
-    if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && shoot_cooldown >= 0.5f) {
+    if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && shoot_cooldown_timer >= attack_speed_1) {
         Shoot(Steering::PlayerDirectionToMouse(mousePosition, entity.GetPosition()));
-        shoot_cooldown = 0.f;
+        shoot_cooldown_timer = 0.f;
     }
 
     sprite.setRotation(sf::degrees(
@@ -203,7 +206,7 @@ void Player::TakeDamage() {
 
 void Player::Shoot(const sf::Vector2f& closest_enemy_pos) {
     sf::CircleShape bullet{5, 30};
-    bullets.emplace_back(bullet, entity.GetPosition(), closest_enemy_pos, damage, playerB);
+    bullets.emplace_back(bullet, entity.GetPosition(), closest_enemy_pos, damage, bullet_speed, playerB);
 }
 
 void Player::RemoveBullet(const int bulletId) {
@@ -244,21 +247,61 @@ const std::list<BulletEntity>& Player::GetBullets() const {
     return bullets;
 }
 
-Enemy::Enemy(sf::Sprite sprite, const sf::Vector2f& spawn_position) : entity{sf::CircleShape{50.f, 100}, 5, {200, 200}}, sprite(std::move(sprite)) {
-    this->entity.SetPosition(spawn_position);
+Enemy::Enemy(sf::Sprite sprite, const sf::Vector2f& starting_pos, const EnemyType enemy_type) :
+    enemy_type(enemy_type),
+    entity{sf::CircleShape{50.f, 100},
+    0,
+    starting_pos},
+    sprite(std::move(sprite))
+{
     CenterSpriteOrigin(this->sprite);
-    this->sprite.setPosition({spawn_position.x, spawn_position.y});
+    this->sprite.setPosition({starting_pos.x, starting_pos.y});
+
+    switch (enemy_type) {
+        case EnemyType::Normal:
+            entity.SetHealth(5);
+            damage = 1;
+            speed = 350.f;
+            shoot_cooldown = attack_speed_2;
+            follow_distance = 100;
+            break;
+
+        case EnemyType::Tank:
+            entity.SetHealth(10);
+            damage = 1;
+            speed = 250.f;
+            shoot_cooldown = attack_speed_3;
+            follow_distance = 100;
+            break;
+
+        case EnemyType::Sniper:
+            entity.SetHealth(3);
+            damage = 3;
+            speed = 250.f;
+            shoot_cooldown = attack_speed_3;
+            follow_distance = 300;
+            bullet_speed = 2500.f;
+            break;
+
+        case EnemyType::Stealth:
+            entity.SetHealth(2);
+            damage = 1;
+            speed = 450.f;
+            shoot_cooldown = attack_speed_1;
+            follow_distance = 50;
+            break;
+    }
 }
 
 void Enemy::Update(const float dt, const sf::Vector2f& player_pos) {
-    shoot_cooldown += dt;
+    shoot_cooldown_timer += dt;
     const sf::Vector2f direction = Steering::EnemyToPlayer(entity.GetPosition(), player_pos);
 
-    constexpr float speed = 350.f;
-
-    entity.SetVelocity(direction * speed);
-    entity.Update(dt);
-    sprite.setPosition({entity.GetPosition().x, entity.GetPosition().y});
+    if (Steering::StopEnemyMovement(player_pos, entity.GetPosition(), follow_distance)) {
+        entity.SetVelocity(direction * speed);
+        entity.Update(dt);
+        sprite.setPosition({entity.GetPosition().x, entity.GetPosition().y});
+    }
 }
 void Enemy::SetVelocity(const sf::Vector2f velocity) {
     entity.SetVelocity(velocity);
@@ -269,10 +312,10 @@ void Enemy::SetAcceleration(const sf::Vector2f acceleration) {
 
 void Enemy::Shoot(const sf::Vector2f &player_position) {
     const sf::Vector2f direction = Steering::EnemyToPlayer(entity.GetPosition(), player_position);
-    if (shoot_cooldown > .5) {
+    if (shoot_cooldown_timer > shoot_cooldown) {
         sf::CircleShape bullet{5, 30};
-        bullets.emplace_back(bullet, entity.GetPosition(), direction, damage, enemyB);
-        shoot_cooldown = 0.f;
+        bullets.emplace_back(bullet, entity.GetPosition(), direction, damage, bullet_speed, enemyB);
+        shoot_cooldown_timer = 0.f;
     }
 }
 

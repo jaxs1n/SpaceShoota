@@ -20,9 +20,9 @@ namespace Game {
         void Run();
 
     private:
-        static constexpr int MaxHealth = 5;
-        static constexpr float HealInterval = 5.f;
-        static constexpr float BulletCullDistance = 2500.f;
+        static constexpr int MaxHealth{100};
+        static constexpr float HealInterval{5.f};
+        static constexpr float BulletCullDistance{2500.f};
 
         void Update(float dt);
         void Render();

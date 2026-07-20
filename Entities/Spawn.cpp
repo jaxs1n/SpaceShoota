@@ -53,3 +53,21 @@ sf::Vector2f EnemySpawnLocation(const sf::Vector2f& player_pos) {
             return player_pos;
     }
 }
+
+EnemyType RandomEnemyType() {
+    static std::mt19937 randomEngine{std::random_device{}()};
+    std::uniform_int_distribution<int> distribution{0, 3};
+
+    switch (const int enemy_type = distribution(randomEngine)) {
+        case 0:
+            return EnemyType::Normal;
+        case 1:
+            return EnemyType::Sniper;
+        case 2:
+            return EnemyType::Stealth;
+        case 3:
+            return EnemyType::Tank;
+        default:
+            return EnemyType::Normal;
+    }
+}
