@@ -15,13 +15,19 @@ namespace {
 namespace {
     int nextEnemyId = 0;
 }
+
+namespace {
+    int next_entity_id = 0;
+}
 namespace
 {
     sf::Texture PlayerBulletTexture{"bullet.png"};
     sf::Texture EnemyBulletTexture{"bullet2.png"};
+    sf::Texture CannonBulletTexture{"cannon_ball.png"};
 
-    sf::Sprite playerB{PlayerBulletTexture};
-    sf::Sprite enemyB{EnemyBulletTexture};
+    sf::Sprite CannonBulletSprite{CannonBulletTexture};
+    sf::Sprite PlayerBullet{PlayerBulletTexture};
+    sf::Sprite EnemyBullet{EnemyBulletTexture};
 
     void CenterSpriteOrigin(sf::Sprite& sprite)
     {
@@ -34,10 +40,20 @@ namespace
     }
 }
 namespace {
-    const float attack_speed_0 = 0.f;
-    const float attack_speed_1 = 0.3f;
-    const float attack_speed_2 = 0.5f;
-    const float attack_speed_3 = 0.63;
+    constexpr float attack_speed_0 = 0.f;
+    constexpr float attack_speed_1 = 0.3f;
+    constexpr float attack_speed_2 = 0.5f;
+    constexpr float attack_speed_3 = 0.63;
+
+    constexpr float armor_0 = 0.f;
+    constexpr float armor_1 = 1.f;
+    constexpr float armor_2 = 2.f;
+    constexpr float armor_3 = 3.f;
+}
+
+namespace {
+    sf::CircleShape bullet{5, 30};
+    sf::CircleShape cannon_ball{15, 30};
 }
 
 CharacterEntity::CharacterEntity(sf::CircleShape shape, const int health, const sf::Vector2f position)
@@ -154,6 +170,8 @@ entity{sf::CircleShape{40.f, 30},100, sf::Vector2f{starting_pos.x, starting_pos.
 
 void Player::Update(const float dt, const sf::RenderWindow& window) {
     shoot_cooldown_timer += dt;
+    double_shot_cooldown_timer += dt;
+    cannon_shot_cooldown_timer += dt;
 
     sf::Vector2f movementDirection{0.f, 0.f};
 
@@ -166,7 +184,22 @@ void Player::Update(const float dt, const sf::RenderWindow& window) {
 
     if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && shoot_cooldown_timer >= attack_speed_1) {
         Shoot(Steering::PlayerDirectionToMouse(mousePosition, entity.GetPosition()));
+        for (const auto& item : player_items) {
+            if (item == PlayerItem::Double_Shot) {
+                allow_double_shot = true;
+                double_shot_cooldown_timer = 0.f;
+            }
+            if (item == PlayerItem::Cannon_Shot && cannon_shot_cooldown_timer >= .8) {
+                ShootCannon(Steering::PlayerDirectionToMouse(mousePosition, entity.GetPosition()));
+                cannon_shot_cooldown_timer = 0.f;
+            }
+        }
         shoot_cooldown_timer = 0.f;
+    }
+    if (allow_double_shot && double_shot_cooldown_timer >= .05f) {
+        Shoot(Steering::PlayerDirectionToMouse(mousePosition, entity.GetPosition()));
+        double_shot_cooldown_timer = 0.f;
+        allow_double_shot = false;
     }
 
     sprite.setRotation(sf::degrees(
@@ -188,6 +221,15 @@ void Player::Update(const float dt, const sf::RenderWindow& window) {
     sprite.setPosition(entity.GetPosition());
 }
 
+void Player::AddItem(const PlayerItem item) {
+    for (const auto& local_item : player_items) {
+        if (local_item == item) {
+            return;
+        }
+    }
+    player_items.push_back(item);
+}
+
 void Player::SetVelocity(const sf::Vector2f velocity) {
     entity.SetVelocity(velocity);
 }
@@ -205,8 +247,10 @@ void Player::TakeDamage() {
 }
 
 void Player::Shoot(const sf::Vector2f& closest_enemy_pos) {
-    sf::CircleShape bullet{5, 30};
-    bullets.emplace_back(bullet, entity.GetPosition(), closest_enemy_pos, damage, bullet_speed, playerB);
+    bullets.emplace_back(bullet, entity.GetPosition(), closest_enemy_pos, damage, bullet_speed, PlayerBullet);
+}
+void Player::ShootCannon(const sf::Vector2f& closest_enemy_pos) {
+    bullets.emplace_back(cannon_ball, entity.GetPosition(), closest_enemy_pos, 10, 700, CannonBulletSprite);
 }
 
 void Player::RemoveBullet(const int bulletId) {
@@ -314,7 +358,7 @@ void Enemy::Shoot(const sf::Vector2f &player_position) {
     const sf::Vector2f direction = Steering::EnemyToPlayer(entity.GetPosition(), player_position);
     if (shoot_cooldown_timer > shoot_cooldown) {
         sf::CircleShape bullet{5, 30};
-        bullets.emplace_back(bullet, entity.GetPosition(), direction, damage, bullet_speed, enemyB);
+        bullets.emplace_back(bullet, entity.GetPosition(), direction, damage, bullet_speed, EnemyBullet);
         shoot_cooldown_timer = 0.f;
     }
 }
@@ -348,6 +392,18 @@ const std::list<BulletEntity>& Enemy::GetBullets() const {
 
 CharacterEntity& Enemy::GetEntity() {
     return entity;
+}
+
+ItemEntity::ItemEntity(const sf::CircleShape &shape, const sf::Vector2f &spawn_position, const sf::Sprite &sprite, const int item_id) :
+    Entity_Id(next_entity_id++),
+    Item_Id(item_id),
+    hitbox(shape),
+    position(spawn_position),
+    sprite(sprite)
+{}
+
+void ItemEntity::Update(const float dt) {
+    time_alive += dt;
 }
 
 Explosion::Explosion(const sf::Sprite &sprite, const sf::Vector2f &starting_pos) : sprite(sprite), position(starting_pos) {

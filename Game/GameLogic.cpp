@@ -13,6 +13,10 @@ namespace {
     constexpr sf::Vector2f PlayerStart{1000.f, 1000.f};
 }
 
+bool Game::AttemptItemSpawn() {
+    return rand() % 13 == 0;
+}
+
 Game::GameLogic::GameLogic()
     : player_{Spawn::InitializePlayer(playerTexture_, PlayerStart)} {
     nextSpawnDelay_ = spawnDelayDistribution_(randomEngine_);
@@ -48,7 +52,7 @@ void Game::GameLogic::Update(const float dt) {
 
     player_.Update(dt, window_.window);
     UpdatePlayerBullets(dt);
-
+    SpawnItemsOnEnemyDeath();
     RemoveDeadEnemies();
     UpdateExplosions(dt);
     UpdateHealing(dt);
@@ -187,6 +191,21 @@ void Game::GameLogic::UpdateHealing(const float dt) {
     auto& entity = player_.GetEntity();
     entity.SetHealth(std::min(entity.GetHealth() + 1, MaxHealth));
     healTimer_ = 0.f;
+}
+
+void Game::GameLogic::SpawnItemsOnEnemyDeath() {
+    for (auto& enemy : enemies_) {
+        if (enemy.GetEntity().GetHealth() <= 0 && AttemptItemSpawn()) {
+            switch (int item_itr = ItemToSpawn(randomEngine_)) {
+                case 0:
+                    player_.AddItem(PlayerItem::Double_Shot);
+                    break;
+                case 1:
+                    player_.AddItem(PlayerItem::Cannon_Shot);
+                    break;
+            }
+        }
+    }
 }
 
 void Game::GameLogic::RemoveDeadEnemies() {

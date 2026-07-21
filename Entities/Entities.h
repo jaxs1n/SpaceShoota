@@ -8,18 +8,6 @@
 #include "SFML/Graphics/RenderWindow.hpp"
 #include "SFML/Graphics/Sprite.hpp"
 
-
-enum class ItemType {
-    piercing_ammo,
-    shotgun_ammo,
-    armor_1,
-    armor_2,
-    armor_3,
-    damage_1,
-    damage_2,
-    damage_3
-};
-
 enum class EnemyType {
     Normal,
     Tank,
@@ -27,18 +15,21 @@ enum class EnemyType {
     Sniper
 };
 
+enum class PlayerItem {
+    Triple_Shot,
+    Double_Shot,
+    Cannon_Shot
+};
+
 class CharacterEntity {
 public:
     CharacterEntity(sf::CircleShape shape, int health, sf::Vector2f position);
 
-    [[nodiscard]] bool IsAlive() const;
     [[nodiscard]] int GetHealth() const;
     [[nodiscard]] int GetId() const;
-
     [[nodiscard]] sf::Vector2f GetPosition() const;
     [[nodiscard]] sf::Vector2f GetVelocity() const;
     [[nodiscard]] sf::Vector2f GetAcceleration() const;
-
     [[nodiscard]] const sf::CircleShape& GetShape() const;
     [[nodiscard]] sf::CircleShape& GetShape();
 
@@ -75,12 +66,35 @@ public:
     int GetId() const;
 
 private:
+    const int Id{};
     int damage{};
     sf::CircleShape hitbox;
     sf::Vector2f position{};
     sf::Vector2f velocity{};
     sf::Sprite sprite;
-    const int Id{};
+};
+
+class ItemEntity {
+public:
+
+    ItemEntity(const sf::CircleShape &shape, const sf::Vector2f &spawn_position, const sf::Sprite &sprite, int item_id);
+    void Update(float dt);
+    void Despawn();
+
+    [[nodiscard]] int GetEntityId() const;
+    [[nodiscard]] int GetId() const;
+    [[nodiscard]] float GetTimeAlive() const;
+    [[nodiscard]] const sf::CircleShape& GetHitbox() const;
+    [[nodiscard]] const sf::Vector2f& GetPosition() const;
+    [[nodiscard]] const sf::Sprite& GetSprite() const;
+
+private:
+    const int Entity_Id;
+    const int Item_Id;
+    float time_alive{0.f};
+    sf::CircleShape hitbox;
+    sf::Vector2f position{};
+    sf::Sprite sprite;
 };
 
 class Player {
@@ -91,14 +105,12 @@ public:
     void SetVelocity(sf::Vector2f velocity);
     void SetAcceleration(sf::Vector2f acceleration);
     void SetPosition(sf::Vector2f position);
-
     void TakeDamage();
-
-
     void SetDamage(int dmg);
-
     void Shoot(const sf::Vector2f& closest_enemy_pos);
+    void ShootCannon(const sf::Vector2f& closest_enemy_pos);
     void RemoveBullet(int bulletId);
+    void AddItem(PlayerItem item);
 
     [[nodiscard]] sf::Vector2f GetPosition() const;
     [[nodiscard]] const sf::CircleShape& GetShape() const;
@@ -110,18 +122,21 @@ public:
     [[nodiscard]] const std::list<BulletEntity>& GetBullets() const;
 
 private:
-    CharacterEntity entity;
-    std::list<BulletEntity> bullets{};
     int damage{2};
-    sf::Sprite sprite;
-    float shoot_cooldown{0.5f};
-    float shoot_cooldown_timer{0};
+    float shoot_cooldown_timer{0.f};
+    float double_shot_cooldown_timer{0.f};
+    float cannon_shot_cooldown_timer{0.f};
     float bullet_speed{1400.f};
+    bool allow_double_shot{false};
+    sf::Sprite sprite;
+    CharacterEntity entity;
+    std::vector<PlayerItem> player_items{};
+    std::list<BulletEntity> bullets{};
 };
 
 class Enemy {
 public:
-    explicit Enemy(sf::Sprite sprite, const sf::Vector2f& starting_pos, const EnemyType enemy_type);
+    explicit Enemy(sf::Sprite sprite, const sf::Vector2f& starting_pos, EnemyType enemy_type);
 
     void Update(float dt, const sf::Vector2f& player_pos);
     void SetVelocity(sf::Vector2f velocity);
@@ -139,16 +154,16 @@ public:
     int GetEnemyId() const;
 
 private:
-    EnemyType enemy_type{EnemyType::Normal};
-    CharacterEntity entity;
-    sf::Sprite sprite;
+    int follow_distance{50};
     int damage{1};
     float bullet_speed{1400.f};
     float speed{0.f};
-    std::list<BulletEntity> bullets{};
     float shoot_cooldown{0.5f};
     float shoot_cooldown_timer{0};
-    int follow_distance{50};
+    sf::Sprite sprite;
+    EnemyType enemy_type{EnemyType::Normal};
+    CharacterEntity entity;
+    std::list<BulletEntity> bullets{};
 };
 
 struct Explosion {

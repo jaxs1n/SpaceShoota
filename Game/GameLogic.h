@@ -14,6 +14,8 @@
 #include "../WindowLayer/window.h"
 
 namespace Game {
+    bool AttemptItemSpawn();
+
     class GameLogic {
     public:
         GameLogic();
@@ -33,6 +35,7 @@ namespace Game {
         void UpdatePlayerBullets(float dt);
         void UpdateExplosions(float dt);
         void UpdateHealing(float dt);
+        void SpawnItemsOnEnemyDeath();
         void RemoveDeadEnemies();
         void ResetAfterDeath();
         void UpdateHud();
@@ -68,6 +71,7 @@ namespace Game {
 
         std::mt19937 randomEngine_{std::random_device{}()};
         std::uniform_real_distribution<float> spawnDelayDistribution_{0.75f, 1.75f};
+        std::uniform_int_distribution<int> ItemToSpawn{0, 1};
     };
 }
 
