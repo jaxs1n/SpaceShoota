@@ -8,6 +8,12 @@
 #include "SFML/Graphics/RenderWindow.hpp"
 #include "SFML/Graphics/Sprite.hpp"
 
+// Reflective Shield Power Up
+// Aimbot Power Up
+// Super Speed Power Up
+// Slow-Mo Power Up
+// "Gold Rush" Power Up - More points, enemies become one tap -- maybe every 100 points?
+
 enum class EnemyType {
     Normal,
     Tank,
@@ -18,12 +24,16 @@ enum class EnemyType {
 enum class PlayerItem {
     Triple_Shot,
     Double_Shot,
-    Cannon_Shot
+    Cannon_Shot,
+    Reflective_Shield,
+    Aimbot,
+    Super_Speed,
+    Slow_Mo
 };
 
 class CharacterEntity {
 public:
-    CharacterEntity(sf::CircleShape shape, int health, sf::Vector2f position);
+    CharacterEntity(sf::CircleShape shape, int health, sf::Vector2f position);\
 
     [[nodiscard]] int GetHealth() const;
     [[nodiscard]] int GetId() const;
@@ -36,7 +46,8 @@ public:
     void SetPosition(sf::Vector2f position);
     void SetVelocity(sf::Vector2f velocity);
     void SetAcceleration(sf::Vector2f acceleration);
-    void SetHealth(int health);
+    void SetHealth(int health_);
+    void SetSpeed(float speed_);
     void TakeDamage();
     void Update(float dt);
     void TakeDamage(int damage);
@@ -44,7 +55,7 @@ public:
 private:
     int health{};
     int Id{};
-    float speed{450};
+    float movement_speed{450};
     float shoot_cooldown{.5};
 
     sf::Vector2f position{};
@@ -56,8 +67,8 @@ private:
 
 class BulletEntity {
 public:
-
     BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const sf::Vector2f &starting_velo, int damage, float b_speed, sf::Sprite sprite);
+
     void Update(float dt);
 
     const sf::CircleShape& GetShape() const;
@@ -76,22 +87,24 @@ private:
 
 class ItemEntity {
 public:
-
     ItemEntity(const sf::CircleShape &shape, const sf::Vector2f &spawn_position, const sf::Sprite &sprite, int item_id);
+
     void Update(float dt);
-    void Despawn();
+    void Pickup();
 
     [[nodiscard]] int GetEntityId() const;
-    [[nodiscard]] int GetId() const;
+    [[nodiscard]] int GetItemId() const;
     [[nodiscard]] float GetTimeAlive() const;
     [[nodiscard]] const sf::CircleShape& GetHitbox() const;
     [[nodiscard]] const sf::Vector2f& GetPosition() const;
     [[nodiscard]] const sf::Sprite& GetSprite() const;
+    [[nodiscard]] bool GetPickupState() const;
 
 private:
-    const int Entity_Id;
-    const int Item_Id;
+    int Entity_Id;
+    int Item_Id;
     float time_alive{0.f};
+    bool picked_up{false};
     sf::CircleShape hitbox;
     sf::Vector2f position{};
     sf::Sprite sprite;
@@ -110,23 +123,26 @@ public:
     void Shoot(const sf::Vector2f& closest_enemy_pos);
     void ShootCannon(const sf::Vector2f& closest_enemy_pos);
     void RemoveBullet(int bulletId);
-    void AddItem(PlayerItem item);
+    void AddItem(int item_id);
 
     [[nodiscard]] sf::Vector2f GetPosition() const;
     [[nodiscard]] const sf::CircleShape& GetShape() const;
     [[nodiscard]] const sf::Sprite& GetSprite() const;
     [[nodiscard]] int GetDamage() const;
     [[nodiscard]] CharacterEntity& GetEntity();
-
-    std::list<BulletEntity>& GetBullets();
+    [[nodiscard]] std::list<BulletEntity>& GetBullets();
     [[nodiscard]] const std::list<BulletEntity>& GetBullets() const;
+    [[nodiscard]] std::vector<PlayerItem>& GetPlayerItems();
 
 private:
     int damage{2};
     float shoot_cooldown_timer{0.f};
     float double_shot_cooldown_timer{0.f};
     float cannon_shot_cooldown_timer{0.f};
+    float cannon_shot_allow{.9f};
+    float double_show_allow{.6f};
     float bullet_speed{1400.f};
+    float tally_speed{450};
     bool allow_double_shot{false};
     sf::Sprite sprite;
     CharacterEntity entity;

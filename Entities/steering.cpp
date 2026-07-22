@@ -4,10 +4,6 @@
 
 #include "steering.h"
 #include <cmath>
-#include <iostream>
-#include <ostream>
-
-#include "SFML/Window/Mouse.hpp"
 
 sf::Vector2f Steering::EnemyToPlayer(const sf::Vector2f player_pos, const sf::Vector2f enemy_pos) {
     const sf::Vector2f difference = enemy_pos - player_pos;

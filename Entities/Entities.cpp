@@ -2,11 +2,24 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
+#include <map>
 #include <utility>
 #include "steering.h"
 #include "SFML/Window/Keyboard.hpp"
 #include "SFML/Graphics/Texture.hpp"
 #include "SFML/Window/Mouse.hpp"
+
+// Reflective Shield Power Up
+// Aimbot Power Up
+// Super Speed Power Up
+// Slow-Mo Power Up
+// "Gold Rush" Power Up - More points, enemies become one tap -- maybe every 100 points?
+// Juggernaut Enemy Type
+// Boss
+// Fix aspect ratio -- Resolution scaling & allow full screen
+// Homing Missiles
+// special attacks? -- RMB/Spacebar cooldown abilities?
 
 namespace {
     int nextBulletId = 0;
@@ -19,6 +32,16 @@ namespace {
 namespace {
     int next_entity_id = 0;
 }
+
+namespace {
+    std::map<int, PlayerItem> id_to_playerItem = {
+        {1, PlayerItem::Double_Shot},
+        {2, PlayerItem::Cannon_Shot},
+        {3, PlayerItem::Super_Speed},
+        {4, PlayerItem::Slow_Mo}
+    };
+}
+
 namespace
 {
     sf::Texture PlayerBulletTexture{"bullet.png"};
@@ -69,7 +92,12 @@ CharacterEntity::CharacterEntity(sf::CircleShape shape, const int health, const 
 
 void CharacterEntity::Update(const float dt) {
     velocity += acceleration * dt;
+    velocity *= movement_speed;
     SetPosition(position + velocity * dt);
+}
+
+void CharacterEntity::SetSpeed(const float speed_) {
+    this->movement_speed = speed_;
 }
 
 void CharacterEntity::TakeDamage(const int damage) {
@@ -121,8 +149,8 @@ void CharacterEntity::SetAcceleration(const sf::Vector2f newAcceleration) {
     acceleration = newAcceleration;
 }
 
-void CharacterEntity::SetHealth(const int health) {
-    this->health = health;
+void CharacterEntity::SetHealth(const int health_) {
+    this->health = health_;
 }
 
 BulletEntity::BulletEntity(sf::CircleShape shape, const sf::Vector2f &starting_pos, const sf::Vector2f &starting_velo, const int damage, const float b_speed, sf::Sprite  sprite) :
@@ -188,10 +216,15 @@ void Player::Update(const float dt, const sf::RenderWindow& window) {
             if (item == PlayerItem::Double_Shot) {
                 allow_double_shot = true;
                 double_shot_cooldown_timer = 0.f;
+                double_show_allow -= .1f;
             }
-            if (item == PlayerItem::Cannon_Shot && cannon_shot_cooldown_timer >= .8) {
+            if (item == PlayerItem::Cannon_Shot && cannon_shot_cooldown_timer >= cannon_shot_allow) {
                 ShootCannon(Steering::PlayerDirectionToMouse(mousePosition, entity.GetPosition()));
                 cannon_shot_cooldown_timer = 0.f;
+                cannon_shot_allow -= 0.1f;
+            }
+            if (item == PlayerItem::Super_Speed) {
+                entity.SetSpeed(tally_speed = 600.f);
             }
         }
         shoot_cooldown_timer = 0.f;
@@ -215,18 +248,27 @@ void Player::Update(const float dt, const sf::RenderWindow& window) {
         movementDirection /= movementLength;
     }
 
-    constexpr float movementSpeed = 450.f;
-    entity.SetVelocity(movementDirection * movementSpeed);
+    entity.SetVelocity(movementDirection);
     entity.Update(dt);
     sprite.setPosition(entity.GetPosition());
 }
 
-void Player::AddItem(const PlayerItem item) {
+void Player::AddItem(const int item_id) {
+
+    const auto item_it = id_to_playerItem.find(item_id);
+
+    if (item_it == id_to_playerItem.end()) {
+        return;
+    }
+
+    const PlayerItem& item = item_it->second;
+
     for (const auto& local_item : player_items) {
         if (local_item == item) {
             return;
         }
     }
+
     player_items.push_back(item);
 }
 
@@ -291,6 +333,10 @@ const std::list<BulletEntity>& Player::GetBullets() const {
     return bullets;
 }
 
+std::vector<PlayerItem>& Player::GetPlayerItems() {
+    return player_items;
+}
+
 Enemy::Enemy(sf::Sprite sprite, const sf::Vector2f& starting_pos, const EnemyType enemy_type) :
     enemy_type(enemy_type),
     entity{sf::CircleShape{50.f, 100},
@@ -342,7 +388,7 @@ void Enemy::Update(const float dt, const sf::Vector2f& player_pos) {
     const sf::Vector2f direction = Steering::EnemyToPlayer(entity.GetPosition(), player_pos);
 
     if (Steering::StopEnemyMovement(player_pos, entity.GetPosition(), follow_distance)) {
-        entity.SetVelocity(direction * speed);
+        entity.SetVelocity(direction);
         entity.Update(dt);
         sprite.setPosition({entity.GetPosition().x, entity.GetPosition().y});
     }
@@ -357,8 +403,8 @@ void Enemy::SetAcceleration(const sf::Vector2f acceleration) {
 void Enemy::Shoot(const sf::Vector2f &player_position) {
     const sf::Vector2f direction = Steering::EnemyToPlayer(entity.GetPosition(), player_position);
     if (shoot_cooldown_timer > shoot_cooldown) {
-        sf::CircleShape bullet{5, 30};
-        bullets.emplace_back(bullet, entity.GetPosition(), direction, damage, bullet_speed, EnemyBullet);
+        sf::CircleShape bullet_{5, 30};
+        bullets.emplace_back(bullet_, entity.GetPosition(), direction, damage, bullet_speed, EnemyBullet);
         shoot_cooldown_timer = 0.f;
     }
 }
@@ -400,10 +446,50 @@ ItemEntity::ItemEntity(const sf::CircleShape &shape, const sf::Vector2f &spawn_p
     hitbox(shape),
     position(spawn_position),
     sprite(sprite)
-{}
+{
+    this->sprite.setScale({.3, .3});
+    this->sprite.setPosition(spawn_position);
+    const sf::FloatRect bounds = this->sprite.getLocalBounds();
+    this->sprite.setOrigin({bounds.position.x + bounds.size.x / 2.f, bounds.position.y + bounds.size.y / 2.f});
+
+    this->hitbox.setPosition(spawn_position);
+    this->hitbox.setOrigin({shape.getRadius(), shape.getRadius()});
+}
+
+const sf::Vector2f &ItemEntity::GetPosition() const {
+    return position;
+}
+
+int ItemEntity::GetItemId() const {
+    return Item_Id;
+}
+
+int ItemEntity::GetEntityId() const {
+    return Entity_Id;
+}
+
+float ItemEntity::GetTimeAlive() const {
+    return time_alive;
+}
+
+const sf::CircleShape &ItemEntity::GetHitbox() const {
+    return hitbox;
+}
+
+const sf::Sprite &ItemEntity::GetSprite() const {
+    return sprite;
+}
+
+bool ItemEntity::GetPickupState() const {
+    return picked_up;
+}
 
 void ItemEntity::Update(const float dt) {
     time_alive += dt;
+}
+
+void ItemEntity::Pickup() {
+    picked_up = true;
 }
 
 Explosion::Explosion(const sf::Sprite &sprite, const sf::Vector2f &starting_pos) : sprite(sprite), position(starting_pos) {

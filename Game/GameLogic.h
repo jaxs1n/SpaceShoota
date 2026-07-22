@@ -35,8 +35,12 @@ namespace Game {
         void UpdatePlayerBullets(float dt);
         void UpdateExplosions(float dt);
         void UpdateHealing(float dt);
+        void UpdateItems(float dt);
+        void ActivatePowerUps(int item);
         void SpawnItemsOnEnemyDeath();
         void RemoveDeadEnemies();
+        void RemovePickedUpItems();
+
         void ResetAfterDeath();
         void UpdateHud();
 
@@ -57,6 +61,7 @@ namespace Game {
         Player player_;
         std::vector<Enemy> enemies_;
         std::vector<Explosion> explosions_;
+        std::vector<ItemEntity> obtainable_items_;
 
         sf::Font font_{"arial.ttf"};
         sf::Text healthText_{font_};
@@ -71,7 +76,7 @@ namespace Game {
 
         std::mt19937 randomEngine_{std::random_device{}()};
         std::uniform_real_distribution<float> spawnDelayDistribution_{0.75f, 1.75f};
-        std::uniform_int_distribution<int> ItemToSpawn{0, 1};
+        std::uniform_int_distribution<int> ItemToSpawn{0, 2};
     };
 }
 

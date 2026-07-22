@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <string>
 
 #include "../Collisions/Collisions.h"
@@ -11,6 +12,19 @@
 
 namespace {
     constexpr sf::Vector2f PlayerStart{1000.f, 1000.f};
+}
+
+namespace {
+    sf::CircleShape generic_item_hitbox{20, 30};
+}
+namespace {
+    sf::Texture CannonBulletTexture{"cannon_ball.png"};
+    sf::Texture PlayerBulletTexture{"bullet.png"};
+    sf::Texture SuperSpeedTexture{"sup_speed.png"};
+
+    sf::Sprite PlayerBullet{PlayerBulletTexture};
+    sf::Sprite CannonBulletSprite{CannonBulletTexture};
+    sf::Sprite SuperSpeedSprite{SuperSpeedTexture};
 }
 
 bool Game::AttemptItemSpawn() {
@@ -54,8 +68,10 @@ void Game::GameLogic::Update(const float dt) {
     UpdatePlayerBullets(dt);
     SpawnItemsOnEnemyDeath();
     RemoveDeadEnemies();
+    RemovePickedUpItems();
     UpdateExplosions(dt);
     UpdateHealing(dt);
+    UpdateItems(dt);
 
     if (player_.GetEntity().GetHealth() <= 0) {
         ResetAfterDeath();
@@ -83,6 +99,10 @@ void Game::GameLogic::Render() {
 
     for (const auto& explosion : explosions_) {
         RD::Renderer::Draw(explosion.sprite, window_.window);
+    }
+
+    for (const auto& item : obtainable_items_) {
+        RD::Renderer::Draw(item.GetSprite(), window_.window);
     }
 
     RD::Renderer::Draw(player_.GetSprite(), window_.window);
@@ -193,15 +213,45 @@ void Game::GameLogic::UpdateHealing(const float dt) {
     healTimer_ = 0.f;
 }
 
+void Game::GameLogic::ActivatePowerUps(const int item) {
+    switch (item) {
+        case 1:
+            player_.AddItem(item);
+        case 2:
+            player_.AddItem(item);
+        case 3:
+            player_.AddItem(item);
+        case 4:
+            for (auto& enemy : enemies_) {
+                enemy.GetEntity().SetSpeed(200);
+            }
+    }
+}
+
+
+void Game::GameLogic::UpdateItems(const float dt) {
+    for (auto& item : obtainable_items_) {
+        item.Update(dt);
+        if (CircleToCircle(item.GetHitbox(), player_.GetShape())) {
+            ActivatePowerUps(item.GetItemId());
+            item.Pickup();
+        }
+    }
+}
+
 void Game::GameLogic::SpawnItemsOnEnemyDeath() {
     for (auto& enemy : enemies_) {
         if (enemy.GetEntity().GetHealth() <= 0 && AttemptItemSpawn()) {
-            switch (int item_itr = ItemToSpawn(randomEngine_)) {
+            switch (ItemToSpawn(randomEngine_)) {
                 case 0:
-                    player_.AddItem(PlayerItem::Double_Shot);
+                    obtainable_items_.emplace_back(generic_item_hitbox, enemy.GetPosition(), CannonBulletSprite, 2);
                     break;
                 case 1:
-                    player_.AddItem(PlayerItem::Cannon_Shot);
+                    obtainable_items_.emplace_back(generic_item_hitbox, enemy.GetPosition(), PlayerBullet, 1);
+                    break;
+                case 2:
+                    obtainable_items_.emplace_back(generic_item_hitbox, enemy.GetPosition(), SuperSpeedSprite, 3);
+                default:
                     break;
             }
         }
@@ -211,11 +261,13 @@ void Game::GameLogic::SpawnItemsOnEnemyDeath() {
 void Game::GameLogic::RemoveDeadEnemies() {
     const auto oldSize = enemies_.size();
 
-    std::erase_if(enemies_, [](Enemy& enemy) {
-        return enemy.GetEntity().GetHealth() <= 0;
-    });
+    std::erase_if(enemies_, [](Enemy& enemy) {return enemy.GetEntity().GetHealth() <= 0;});
 
     currentScore_ += static_cast<int>(oldSize - enemies_.size());
+}
+
+void Game::GameLogic::RemovePickedUpItems() {
+    std::erase_if(obtainable_items_, [](ItemEntity& item) {return item.GetPickupState();});
 }
 
 void Game::GameLogic::ResetAfterDeath() {
@@ -225,7 +277,9 @@ void Game::GameLogic::ResetAfterDeath() {
 
     enemies_.clear();
     explosions_.clear();
+    obtainable_items_.clear();
     player_.GetBullets().clear();
+    player_.GetPlayerItems().clear();
 
     player_.SetPosition(PlayerStart);
     player_.GetEntity().SetHealth(MaxHealth);
